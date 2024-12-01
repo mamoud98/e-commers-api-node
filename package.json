@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start":"node server.js",
     "start:dev": "nodemon server.js",
     "start:prod": "NODE_ENV=production node server.js",
     "debug":"nodemon --inspect=0.0.0.0:9229 server.js"
@@ -45,6 +46,6 @@
     "prettier": "^2.5.1"
   },
   "engines": {
-    "node": "^16.13.0"
+    "node": "^20.18.1"
   }
 }
