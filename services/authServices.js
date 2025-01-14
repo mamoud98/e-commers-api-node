@@ -90,7 +90,7 @@ exports.allowedTo = (...roles) =>
 // @access public
 exports.ForgotPassword = asyncHandler(async (req, res, next) => {
   // 1) Get uer by email
-  const user = await User.find({ email: req.body.email });
+  const user = await User.findOne({ email: req.body.email });
 
   if (!user) {
     return next(
@@ -126,7 +126,8 @@ exports.ForgotPassword = asyncHandler(async (req, res, next) => {
     user.passwordResetVerified = undefined;
 
     await user.save();
-    return next(new ApiError("There is an error in sending email", 500));
+    // return next(new ApiError("There is an error in sending email", 500));
+    return next(new ApiError(err, 500));
   }
 
   res
@@ -181,5 +182,5 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   await user.save();
   //3) if everythink is ok, generaye token
   const token = creatToken(user._id);
-  res.status(200).json(token);
+  res.status(200).json({ token });
 });
