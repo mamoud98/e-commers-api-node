@@ -13,7 +13,27 @@ exports.signUpValidator = [
     .custom((val, { req }) => {
       req.body.slug = slugify(val);
       return true;
-    }),
+    })
+    .custom((val) =>
+      User.findOne({ phone: val }).then((user) => {
+        if (user) {
+          return Promise.reject(new Error("E-mail already in user"));
+        }
+      })
+    ),
+
+  check("phone")
+    .notEmpty()
+    .withMessage("Phone required")
+    .isMobilePhone(["ar-PS"])
+    .withMessage("Invalid phone number only accepted Egy and SA Phone numbers")
+    .custom((val) =>
+      User.findOne({ phone: val }).then((user) => {
+        if (user) {
+          return Promise.reject(new Error("E-mail already in user"));
+        }
+      })
+    ),
 
   check("email")
     .notEmpty()
@@ -47,11 +67,27 @@ exports.signUpValidator = [
   validator,
 ];
 exports.signInValidator = [
-  check("email")
+  check("userData")
     .notEmpty()
-    .withMessage("Email required")
-    .isEmail()
-    .withMessage("Invalid email address"),
+    .withMessage("userData required")
+    .custom((value, { req }) => {
+      // Email validation
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        req.typeData = "email";
+        return true;
+      }
+      // Phone number validation (basic pattern)
+      if (/^\+?\d{10,15}$/.test(value)) {
+        req.typeData = "phone";
+        return true;
+      }
+      // Name validation (alphabet only)
+      if (/^[a-zA-Z0-9_]{3,20}$/.test(value)) {
+        req.typeData = "name";
+        return true;
+      }
+      throw new Error("Input must be a valid name, phone number, or email");
+    }),
   check("password").notEmpty().withMessage("Password required"),
   validator,
 ];
@@ -148,6 +184,32 @@ exports.updateLoggedUserValidator = [
     .optional()
     .isMobilePhone(["ar-EG", "ar-SA"])
     .withMessage("Invalid phone number only accepted Egy and SA Phone numbers"),
+
+  validator,
+];
+
+exports.resetPasswordValidator = [
+  check("email")
+    .notEmpty()
+    .withMessage("Email required")
+    .isEmail()
+    .withMessage("Invalid email address"),
+
+  check("password")
+    .notEmpty()
+    .withMessage("Password required")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters")
+    .custom((password, { req }) => {
+      if (password !== req.body.passwordConfirm) {
+        throw new Error("Password Confirmation incorrect");
+      }
+      return true;
+    }),
+
+  check("passwordConfirm")
+    .notEmpty()
+    .withMessage("Password confirmation required"),
 
   validator,
 ];

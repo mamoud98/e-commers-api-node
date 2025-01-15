@@ -7,7 +7,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/userModle");
 const ApiError = require("../utils/apiError");
 const sendEmail = require("../utils/sendEmail");
-const { creatToken } = require("../utils/creatToken");
+const { creatToken, creatRefreshToken } = require("../utils/creatToken");
 
 // @desc make singnUp for new user
 // @route POST api/v1/auth/signup
@@ -16,25 +16,46 @@ exports.signUp = asyncHandler(async (req, res, next) => {
   const user = await User.create({
     name: req.body.name,
     password: req.body.password,
+    phone: req.body.phone,
     email: req.body.email,
   });
 
   const token = creatToken(user._id);
-  res.status(200).json({ data: user, token });
+  const refreshTokens = creatRefreshToken(user._id);
+  res.status(200).json({ data: user, token, refreshTokens });
+});
+
+// @desc make new token for the user
+// @route POST api/v1/auth/refreshToken
+// @access public
+exports.refreshToken = asyncHandler(async (req, res, next) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return next(new ApiError("Refresh Token not valid", 403));
+  }
+
+  const decoded = JWT.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+  if (!decoded) {
+    return next(new ApiError("Refresh Token expired", 403));
+  }
+  const token = creatToken(decoded.id);
+  res.status(200).json({ token });
 });
 
 // @desc make sign in for new user
 // @route POST api/v1/auth/signin
 // @access public
 exports.signIn = asyncHandler(async (req, res, next) => {
-  const user = await User.findOne({ email: req.body.email });
+  const user = await User.findOne({ [req.typeData]: req.body.userData });
 
   if (!user || !(await bcrypt.compare(req.body.password, user?.password))) {
     return next(new ApiError("password or email is incorect", 401));
   }
 
   const token = creatToken(user._id);
-  res.status(200).json({ data: user, token });
+  const refreshTokens = creatRefreshToken(user._id);
+  res.status(200).json({ data: user, token, refreshTokens });
 });
 
 // @des  this for cheack if the user has token or not
@@ -52,7 +73,11 @@ exports.protect = asyncHandler(async (req, res, next) => {
   }
 
   //2) Verify token
-  const decoded = JWT.verify(token, process.env.JWT_KEY);
+  const decoded = JWT.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
+  if (!decoded) {
+    return next(new ApiError("Invalid Access Token", 401));
+  }
 
   //3) check if the user exist
   const currentUser = await User.findById(decoded.id);
@@ -155,7 +180,7 @@ exports.verifyPassResetCode = asyncHandler(async (req, res, next) => {
   //2) Reset code valid
   user.passwordResetVerified = true;
   await user.save();
-  res.status(200).json({ status: "Success" });
+  res.status(200).json({ email: user.email, status: "Success" });
 });
 
 // @des   reset code password
@@ -182,5 +207,6 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   await user.save();
   //3) if everythink is ok, generaye token
   const token = creatToken(user._id);
-  res.status(200).json({ token });
+  const refreshTokens = creatRefreshToken(user._id);
+  res.status(200).json({ user, token, refreshTokens });
 });
