@@ -13,6 +13,7 @@ const UserSchema = mongoose.Schema(
       lowercase: true,
     },
     ChangedTimeAt: Date,
+    regesterBy: String,
     passwordResetCode: String,
     passwordResetExpires: Date,
     passwordResetVerified: Boolean,
@@ -26,8 +27,6 @@ const UserSchema = mongoose.Schema(
     profileImg: String,
     password: {
       type: String,
-      required: [true, "password required"],
-      minlength: [6, "Too short password "],
     },
     phone: String,
     role: {

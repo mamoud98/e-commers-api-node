@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install -g npm@10.9.1
+RUN npm install -g npm@11.2.0
 
 RUN npm install
 

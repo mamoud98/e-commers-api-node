@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const asyncHandler = require("express-async-handler");
 const JWT = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { OAuth2Client } = require("google-auth-library");
 
 const User = require("../models/userModle");
 const ApiError = require("../utils/apiError");
@@ -18,6 +19,7 @@ exports.signUp = asyncHandler(async (req, res, next) => {
     password: req.body.password,
     phone: req.body.phone,
     email: req.body.email,
+    regesterBy: "normal",
   });
 
   const token = creatToken(user._id);
@@ -25,30 +27,11 @@ exports.signUp = asyncHandler(async (req, res, next) => {
   res.status(200).json({ data: user, token, refreshTokens });
 });
 
-// @desc make new token for the user
-// @route POST api/v1/auth/refreshToken
-// @access public
-exports.refreshToken = asyncHandler(async (req, res, next) => {
-  const { refreshToken } = req.body;
-
-  if (!refreshToken) {
-    return next(new ApiError("Refresh Token not valid", 403));
-  }
-
-  const decoded = JWT.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-  if (!decoded) {
-    return next(new ApiError("Refresh Token expired", 403));
-  }
-  const token = creatToken(decoded.id);
-  res.status(200).json({ token });
-});
-
 // @desc make sign in for new user
 // @route POST api/v1/auth/signin
 // @access public
 exports.signIn = asyncHandler(async (req, res, next) => {
   const user = await User.findOne({ [req.typeData]: req.body.userData });
-
   if (!user || !(await bcrypt.compare(req.body.password, user?.password))) {
     return next(new ApiError("password or email is incorect", 401));
   }
@@ -56,6 +39,40 @@ exports.signIn = asyncHandler(async (req, res, next) => {
   const token = creatToken(user._id);
   const refreshTokens = creatRefreshToken(user._id);
   res.status(200).json({ data: user, token, refreshTokens });
+});
+
+// @desc make sign in or sinup with google
+// @route POST api/v1/auth/google
+// @access public
+exports.loginWithGoogle = asyncHandler(async (req, res, next) => {
+  const oAuth2Client = new OAuth2Client(process.env.GOOGLE_CLINET_ID);
+  const data = await oAuth2Client.verifyIdToken({
+    idToken: req.body.code,
+    audience: process.env.GOOGLE_CLINET_ID,
+  });
+  const user = await User.findOne({ email: data.payload.email });
+  if (user && user.regesterBy !== "google") {
+    return next(
+      new ApiError("plese make login by the same wy you make regester", 401)
+    );
+  }
+  if (!user) {
+    const user = await User.create({
+      name: data.payload.name,
+      phone: data.payload.picture,
+      email: data.payload.email,
+      regesterBy: "google",
+    });
+
+    const token = creatToken(user._id);
+    const refreshTokens = creatRefreshToken(user._id);
+    res.status(200).json({ data: user, token, refreshTokens });
+  }
+  if (user && user.regesterBy === "google") {
+    const token = creatToken(user._id);
+    const refreshTokens = creatRefreshToken(user._id);
+    res.status(200).json({ data: user, token, refreshTokens });
+  }
 });
 
 // @des  this for cheack if the user has token or not
@@ -209,4 +226,22 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   const token = creatToken(user._id);
   const refreshTokens = creatRefreshToken(user._id);
   res.status(200).json({ user, token, refreshTokens });
+});
+
+// @desc make new token for the user
+// @route POST api/v1/auth/refreshToken
+// @access public
+exports.refreshToken = asyncHandler(async (req, res, next) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return next(new ApiError("Refresh Token not valid", 403));
+  }
+
+  const decoded = JWT.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+  if (!decoded) {
+    return next(new ApiError("Refresh Token expired", 403));
+  }
+  const token = creatToken(decoded.id);
+  res.status(200).json({ token });
 });

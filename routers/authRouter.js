@@ -6,6 +6,7 @@ const {
   verifyPassResetCode,
   resetPassword,
   refreshToken,
+  loginWithGoogle,
 } = require("../services/authServices");
 const {
   signUpValidator,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.route("/signup").post(signUpValidator, signUp);
 router.route("/signin").post(signInValidator, signIn);
+router.route("/google").post(loginWithGoogle);
 router.route("/forgot").post(ForgotPassword);
 router.route("/verifyREsetCode").post(verifyPassResetCode);
 router.route("/resetPassword").put(resetPasswordValidator, resetPassword);
